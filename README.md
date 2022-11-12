@@ -13,35 +13,43 @@ https://user-images.githubusercontent.com/80070644/201461457-07bdee30-41ea-4b04-
 ※サンプルプログラムは32bitプログラムとしてビルドしてください。
 ※サンプルコードを閲覧する場合は画面上にコードを表示した状態で、"github.com"というドメインを"github 1s .com"に書き換えることで、VSCode上で閲覧することが可能です。
 <br>
+<br>
 
 このプログラムでは以下の様に、```ntdll.DbgUiRemoteBreakin```のエントリ付近をジャンプ命令に書き換えます。
 ![Ntdll DbgUiUiIssueRemoteBreakin_compare](https://user-images.githubusercontent.com/80070644/201461465-5151a23a-462f-4571-9889-f2c909e0c457.png)
+<br>
 <br>
 
 **「なぜそのようなことが、アンチアタッチになるのか？」**
 それはプロセスがデバッガにアタッチされる際、デバッギ（デバッガの解析対象となるプロセス）内では```ntdll.DbgUiRemoteBreakin```と呼ばれる関数が呼び出されます。その為この関数のエントリを、ジャンプ命令へと書き換えています。そうすることで、デバッガにアタッチされたことをトリガーにして自身が定義した関数に無理やり遷移させることが可能となるのです。
 ![simple_diagram_01](https://user-images.githubusercontent.com/80070644/201461471-bac51587-6585-4227-bd0f-1ea4e87e4938.png)
 <br>
+<br>
 
 サンプルでは```ntdll.DbgUiRemoteBreakin```のエントリを書き換えていますが、この関数は```kernelbase.DebugActiveProcess```の内部で呼び出されており、以下の様にラッパーとなっているので、DebugActiveProcess関数をフックしても同じ効果が期待されます。**多分**
 ![inside_of_KernelBase DebugActiveProcess](https://user-images.githubusercontent.com/80070644/201461478-b3fce3e2-e0e3-4e3e-b0e2-a177ff966288.png)
 <br>
+<br>
 
 ▼ちなみに商用のプロテクターとして有名なThemida君も、本サンプルプログラム同様に```ntdll.DbgUiRemoteBreakin```を書き換えているようです。筆者がTemida Demoを使用してみたところ、以下の様に無理やり```ntdll.LdrShutdownProcess```にジャンプさせ、アタッチを妨害しようとしていました。
 <br>
+<br>
 
-![Themida - Anti-Attach](./illust/Themida-Demo-AntiAttach.png)
+![Themida-Demo-AntiAttach](https://user-images.githubusercontent.com/80070644/201461501-0579023a-6f92-4228-85eb-b32fa2fe1283.png)
+<br>
 <br>
 
 このように、特定の関数をフックすることで、アンチアタッチは機能します。関数を"フックする"と言うと、IATを書き換える方が安全かつ一般的かと思われます。しかし、アンチアタッチを利用するようなケースでは、アタッチされた瞬間に自身のプロセスを終了させる処理や、自身の削除処理が予想される為、関数のエントリが書き変わってしまうことによる副作用等は一切気にしていません。
 
 流れとしては以下の様になります。
 <br>
+<br>
 
 1. フック関数(フック後の遷移先)を用意。
 2. DbgUiRemoteBreakinのアドレスを取得。
 3. フック関数とDbgUiRemoteBreakin関数の距離(アドレス差)を計算。
 4. DbgUiRemoteBreakinのエントリを書き換える。
+<br>
 
 ## 1. フック関数を用意
 
@@ -59,6 +67,7 @@ int WINAPI MyDbgUiRemoteBreakin()
 メッセージボックスを表示後にプロセスを終了させる関数となります。
 その他、お好みでプロセス終了後に自身を削除する様な処理を加えても良いでしょう。
 <br>
+<br>
 
 ## 2. DbgUiRemoteBreakinのアドレスを取得
 
@@ -74,6 +83,7 @@ if (! fnDbgUiRemoteBreakin) return 1;
 
 LoadLibrary関数を用いて、DLLのアドレスを取得→GetProcAddressにて関数のアドレスを動的に解決。
 一般的な手法を用いて、ターゲットとなる関数のアドレスを取得しています。
+<br>
 <br>
 
 ## 3. フック関数とDbgUiRemoteBreakin関数の相対距離を計算
@@ -96,8 +106,9 @@ lpTemp = &lpJumpCode[1];
 また、コードの最上部に```lpJumpCode[0] = 0xE9;```という式があります。これは0xE9がジャンプ命令と対応している為にlpJumpCodeの1バイト目にE9をセットしているのです。
 なので、フックを行う際は以下のようなバイナリを用意します。
 <br>
+<br>
 
-![description_top](./illust/address_description_top.png)
+![address_description_top](https://user-images.githubusercontent.com/80070644/201461516-729a975d-cc00-44ed-97b0-d361a575535a.png)
 
 最後に
 ```C
@@ -112,7 +123,8 @@ lpTemp = &lpJumpCode[1];
 だと仮定すると、（遷移先のアドレス－関数のエントリのアドレス－5バイト）がジャンプ先までの相対アドレスとなるので、
 0x00AB1000 - 0x77C0DFE0 - 0x5 = **0x88EA301B** がオペランドとなる。実際に```lpJumpCode```がメモリ上に書き込まれる場合は、エンディアンネスを考慮すると以下の様になるでしょう。
 
-![description_bottom](./illust/address_description_bottom.png)
+![address_description_bottom](https://user-images.githubusercontent.com/80070644/201461528-7c802100-ba3b-4f79-a7d6-237c3e8c2b25.png)
+<br>
 <br>
 
 ## 4. DbgUiRemoteBreakinのエントリを書き換える
@@ -132,9 +144,11 @@ VirtualProtect(fnDbgUiRemoteBreakin, sizeof(lpJumpCode), dwOldProtect, &dwOldPro
 そして、memcpyにて先ほどの **「3. フック関数とDbgUiRemoteBreakin関数の相対距離を計算」** にて作成した命令(ニーモニック)を、関数のエントリ部分に書き込んでいます。
 以上でメモリの書き換えは完了です。
 <br>
+<br>
 
 ## さいごに。
 今回のサンプルコードでは、DbgUiRemoteBreakin関数のエントリをジャンプ命令に書き換えましたが、ジャンプ命令に書き換えずとも、関数のエントリをret命令に書き換えるだけでも、アタッチに失敗するようです。これはまだ、検証出来ていないので真偽は定かではありません。
+<br>
 <br>
 
 この記事を見ている方のお役に立てれば幸いです。
