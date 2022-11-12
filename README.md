@@ -146,7 +146,7 @@ VirtualProtect(fnDbgUiRemoteBreakin, sizeof(lpJumpCode), dwOldProtect, &dwOldPro
 <br>
 <br>
 
-## さいごに。
+## さいごに
 今回のサンプルコードでは、DbgUiRemoteBreakin関数のエントリをジャンプ命令に書き換えましたが、ジャンプ命令に書き換えずとも、関数のエントリをret命令に書き換えるだけでも、アタッチに失敗するようです。これはまだ、検証出来ていないので真偽は定かではありません。
 <br>
 <br>
