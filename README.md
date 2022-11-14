@@ -28,7 +28,8 @@ https://user-images.githubusercontent.com/80070644/201461457-07bdee30-41ea-4b04-
 <br>
 <br>
 
-サンプルでは```ntdll.DbgUiRemoteBreakin```のエントリを書き換えていますが、この関数は```kernelbase.DebugActiveProcess```の内部で呼び出されており、以下の様にラッパーとなっているので、DebugActiveProcess関数をフックしても同じ効果が期待されます。**多分**
+通常デバッガにりアタッチされる時、デバッガが```kernelbase.DebugActiveProcess```関数を使用して、デバッギ内にリモートスレッドを作成＋```ntdll.DbgUiRemoteBreakin```の呼出しを試みます。
+その為、関数のエントリを書き換えることで、```ntdll.DbgUiRemoteBreakin```の呼出しに失敗し、結果的にアタッチに失敗します。
 ![inside_of_KernelBase DebugActiveProcess](https://user-images.githubusercontent.com/80070644/201461478-b3fce3e2-e0e3-4e3e-b0e2-a177ff966288.png)
 <br>
 <br>
